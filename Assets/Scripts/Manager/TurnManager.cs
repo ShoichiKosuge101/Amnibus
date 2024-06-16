@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Manager
@@ -12,8 +13,10 @@ namespace Manager
     {
         public static TurnManager Instance { get; private set; }
         
-        private Queue<IEnumerator> turnQueue = new Queue<IEnumerator>();
+        private readonly Queue<IEnumerator> _turnQueue = new Queue<IEnumerator>();
         private bool _isProcessing = false;
+        
+        public bool IsPlayerTurn => _turnQueue.Count == 0 && !_isProcessing;
 
         /// <summary>
         /// 初期化
@@ -36,10 +39,19 @@ namespace Manager
         /// </summary>
         private void Update()
         {
-            if (!_isProcessing && turnQueue.Count > 0)
+            if (!_isProcessing && _turnQueue.Count > 0)
             {
                 StartCoroutine(ProcessTurn());
             }
+        }
+        
+        /// <summary>
+        /// ターン追加
+        /// </summary>
+        /// <param name="turn"></param>
+        public void AddTurn(IEnumerator turn)
+        {
+            _turnQueue.Enqueue(turn);
         }
 
         /// <summary>
@@ -49,21 +61,51 @@ namespace Manager
         private IEnumerator ProcessTurn()
         {
             _isProcessing = true;
-            while (turnQueue.Count > 0)
+            
+            while (_turnQueue.Count > 0)
             {
-                var currentTurn = turnQueue.Dequeue();
+                var currentTurn = _turnQueue.Dequeue();
                 yield return StartCoroutine(currentTurn);
             }
+            
             _isProcessing = false;
+        }
+
+        /// <summary>
+        /// プレイヤーターン終了
+        /// </summary>
+        public void EndPlayerTurn()
+        {
+            AddTurn(ProcessEnemyTurn());
+        }
+
+        /// <summary>
+        /// 敵ターン処理
+        /// </summary>
+        /// <returns></returns>
+        private IEnumerator ProcessEnemyTurn()
+        {
+            // 敵のターン処理
+            foreach (var enemy in FindObjectsOfType<Enemy.EnemyBase>())
+            {
+                enemy.TakeTurn();
+            }
+            
+            // 敵が移動中の場合
+            while (AnyEnemyMoving())
+            {
+                // 敵が移動中の場合は待機
+                yield return null;
+            }
         }
         
         /// <summary>
-        /// ターン追加
+        /// 敵が移動中か
         /// </summary>
-        /// <param name="turn"></param>
-        public void AddTurn(IEnumerator turn)
+        /// <returns></returns>
+        private bool AnyEnemyMoving()
         {
-            turnQueue.Enqueue(turn);
+            return FindObjectsOfType<Enemy.EnemyBase>().Any(enemy => enemy.IsMoving);
         }
     }
 }

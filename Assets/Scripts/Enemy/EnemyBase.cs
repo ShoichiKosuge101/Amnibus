@@ -1,3 +1,4 @@
+using System.Collections;
 using Manager;
 using UnityEngine;
 
@@ -16,6 +17,9 @@ namespace Enemy
         private Vector2Int _gridPosition;
         private float _moveCooldown = 1.0f;
         private float _moveTimer = 0.0f;
+        
+        private bool _isMoving = false;
+        public bool IsMoving => _isMoving;
 
         /// <summary>
         /// 初期化
@@ -38,22 +42,18 @@ namespace Enemy
         }
 
         /// <summary>
-        /// 更新
+        /// ターン処理
         /// </summary>
-        private void Update()
+        public void TakeTurn()
         {
-            _moveTimer += Time.deltaTime;
-            if (_moveTimer >= _moveCooldown)
-            {
-                _moveTimer = 0.0f;
-                Move();
-            }
+            _isMoving = true;
+            StartCoroutine(MoveRandomly());
         }
 
         /// <summary>
         /// 移動
         /// </summary>
-        private void Move()
+        private IEnumerator MoveRandomly()
         {
             Vector2Int[] directions = new Vector2Int[]
             {
@@ -73,16 +73,43 @@ namespace Enemy
                 GridManager.Instance.RemoveEnemy(_gridPosition.x, _gridPosition.y);
                 _gridPosition = newGridPosition;
                 
-                transform.position = new Vector3(_gridPosition.x, _gridPosition.y, 0);
+                yield return StartCoroutine(MoveToPosition(new Vector3(_gridPosition.x, _gridPosition.y, 0)));
+                
                 GridManager.Instance.PlaceEnemy(_gridPosition.x, _gridPosition.y);
             }
+            
+            _isMoving = false;
         }
-        
+
+        /// <summary>
+        /// 移動
+        /// </summary>
+        /// <param name="targetPosition"></param>
+        /// <returns></returns>
+        private IEnumerator MoveToPosition(Vector3 targetPosition)
+        {
+            // 移動中
+            while((transform.position - targetPosition).sqrMagnitude > float.Epsilon)
+            {
+                transform.position = Vector3
+                    .MoveTowards(
+                        transform.position, 
+                        targetPosition, 
+                        _speed * Time.deltaTime
+                    );
+                yield return null;
+            }
+            
+            // 移動完了
+            transform.position = targetPosition;
+            _isMoving = false;
+        }
+
         /// <summary>
         /// プレイヤーの位置を取得
         /// </summary>
         /// <returns></returns>
-        private Vector2Int GetPlayerPosition()
+        private static Vector2Int GetPlayerPosition()
         {
             var player = GameManager.Instance.GetPlayerInstance();
             return new Vector2Int(

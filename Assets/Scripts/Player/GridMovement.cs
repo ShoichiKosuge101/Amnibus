@@ -45,7 +45,11 @@ namespace Player
             {
                 case PlayerState.Idle:
                 {
-                    HandleIdleState();
+                    if(TurnManager.Instance.IsPlayerTurn)
+                    {
+                        HandleIdleState();
+                    }
+                    
                     break;
                 }
                 case PlayerState.Moving:
@@ -82,9 +86,12 @@ namespace Player
                 {
                     GameManager.Instance.OnGoalReached();
                 }
+                
+                // プレイヤーターン終了
+                TurnManager.Instance.EndPlayerTurn();
             }
         }
-
+        
         /// <summary>
         /// ゴールに到達したか
         /// </summary>
